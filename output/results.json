@@ -1,0 +1,72 @@
+[
+  {
+    "job_id": "sample_001",
+    "task_type": "classify_wrangle",
+    "input": {
+      "code": "@P += @N * ch('offset');"
+    },
+    "result": {
+      "context": "point",
+      "confidence": 0.9,
+      "evidence": [
+        [
+          "@P",
+          "@N"
+        ],
+        [
+          "* ch('offset')"
+        ]
+      ]
+    },
+    "confidence": 0.9,
+    "status": "success",
+    "processing_time": 5.122658967971802
+  },
+  {
+    "job_id": "sample_002",
+    "task_type": "classify_wrangle",
+    "input": {
+      "code": "@Cd = fit(@P.y, 0, 1, {0,0,1}, {1,0,0});"
+    },
+    "result": {
+      "context": "point",
+      "confidence": 1,
+      "evidence": [
+        [
+          "@Cd",
+          "@P.y"
+        ]
+      ],
+      "setpointattrib()": {
+        "indicator": true,
+        "type": "point"
+      }
+    },
+    "confidence": 0.95,
+    "status": "success",
+    "processing_time": 5.817969560623169
+  },
+  {
+    "job_id": "sample_003",
+    "task_type": "classify_wrangle",
+    "input": {
+      "code": "int pts[] = primpoints(0, @primnum);"
+    },
+    "result": {
+      "context": "point",
+      "confidence": 1,
+      "evidence": [
+        [
+          "@primnum",
+          "@P",
+          "@N",
+          "@Cd"
+        ]
+      ],
+      "conflicting_signals": false
+    },
+    "confidence": 0.95,
+    "status": "success",
+    "processing_time": 5.508342742919922
+  }
+]

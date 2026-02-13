@@ -1,0 +1,1 @@
+{"prompt": "Write a VEX snippet that counts and stores the number of points within a radius of 1.0 unit from each point in the current geometry using proximity search.", "completion": "int h = pcopen(0, \"P\", @P, 1.0, 10); pcclose(h);", "metadata": {"context": "point", "difficulty": 3, "topic": ""}}

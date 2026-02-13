@@ -1,0 +1,133 @@
+# VEX Corpus - Ollama Model Configuration
+# Hardware: RTX 4090 (24GB), Threadripper PRO 7965WX, 128GB RAM
+#
+# Model Benchmark Results:
+#   nemotron-mini (4.2B):   1.1s avg, 119 tok/s  -> Tier 1
+#   nemotron-3-nano (31.6B): 15.9s avg, 27 tok/s -> Tier 2 (OPTIMAL)
+#   nemotron (70.6B):       35.8s avg, 3.4 tok/s -> Too slow, fallback only
+
+ollama:
+  base_url: "http://localhost:11434"
+  keep_alive: "24h"
+  max_loaded_models: 2
+
+# Model Tier Assignments - ALL NEMOTRON FAMILY
+models:
+  tier1:
+    # Fast classification - 4.2B runs at 119 tok/s
+    primary: "nemotron-mini:latest"
+    fallbacks:
+      - "nemotron-3-nano:latest"  # Fallback to nano if mini fails
+    config:
+      temperature: 0.1
+      top_p: 0.9
+      num_predict: 1024
+      format: "json"
+
+  tier2:
+    # Generation tasks - 31.6B is 2.2x faster than 70B with good quality
+    primary: "nemotron-3-nano:latest"
+    fallbacks:
+      - "nemotron:latest"         # Full 70B as last resort
+      - "nemotron-mini:latest"    # Fast fallback if all else fails
+    config:
+      temperature: 0.3
+      top_p: 0.95
+      num_predict: 2048
+      format: "json"
+
+  embedding:
+    primary: "nomic-embed-text"
+    dimensions: 768
+
+# Task Routing
+tasks:
+  # Tier 1: Fast classification (nemotron-mini 4.2B)
+  # Expected: ~1-2s per task, 40+ tasks/minute
+  classify_wrangle:
+    tier: 1
+    timeout_seconds: 15
+    retries: 2
+    consensus: false
+
+  extract_attributes:
+    tier: 1
+    timeout_seconds: 15
+    retries: 2
+    consensus: false
+
+  extract_functions:
+    tier: 1
+    timeout_seconds: 15
+    retries: 2
+    consensus: false
+
+  detect_bugs:
+    tier: 1
+    timeout_seconds: 20
+    retries: 2
+    consensus: true
+
+  estimate_complexity:
+    tier: 1
+    timeout_seconds: 15
+    retries: 2
+    consensus: true
+
+  classify_topic:
+    tier: 1
+    timeout_seconds: 15
+    retries: 2
+    consensus: true
+
+  # Tier 2: Generation tasks (nemotron-3-nano 31.6B)
+  # Expected: ~15-30s per task, 3-4 tasks/minute
+  generate_prompt:
+    tier: 2
+    timeout_seconds: 60
+    retries: 2
+    consensus: false
+
+  generate_explanation:
+    tier: 2
+    timeout_seconds: 90
+    retries: 2
+    consensus: false
+
+  inject_bug:
+    tier: 2
+    timeout_seconds: 60
+    retries: 2
+    consensus: false
+
+  paraphrase_prompt:
+    tier: 2
+    timeout_seconds: 45
+    retries: 2
+    consensus: false
+
+  rate_difficulty:
+    tier: 2
+    timeout_seconds: 45
+    retries: 2
+    consensus: true
+
+  infer_context:
+    tier: 2
+    timeout_seconds: 60
+    retries: 2
+    consensus: false
+
+# Quality Control
+quality:
+  flag_confidence_below: 0.6
+  flag_consensus_below: 0.66
+  review_queue_enabled: true
+
+# Throughput Targets (tasks/minute) - Updated for new model config
+throughput:
+  tier1_target: 40    # nemotron-mini: ~1s/task
+  tier2_target: 4     # nemotron-3-nano: ~15s/task
+  batch_sizes:
+    tier1: 10
+    tier2: 3

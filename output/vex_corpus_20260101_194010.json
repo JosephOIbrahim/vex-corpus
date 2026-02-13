@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-01T19:40:10.909656",
+    "total_samples": 1,
+    "flagged_for_review": 0
+  },
+  "samples": [
+    {
+      "id": "vex_cdd9d0272bac45a9",
+      "code": "@P += @N * ch(\"amplitude\");",
+      "source_file": "input\\test1.vex",
+      "source_line": 1,
+      "hash": "cdd9d0272bac45a9",
+      "created_at": "2026-01-01T19:34:58.829552",
+      "stage": "complete",
+      "classification": {
+        "context": "point",
+        "context_confidence": 1.0,
+        "attributes_read": [
+          {
+            "name": "@N",
+            "type": "int",
+            "builtin": true
+          }
+        ],
+        "attributes_written": [],
+        "channels": [],
+        "functions": [],
+        "bugs": [
+          {
+            "type": "integer_division",
+            "severity": "error",
+            "description": "1/2 = 0, should be 1.0/2.0",
+            "suggestion": ""
+          }
+        ],
+        "complexity": "",
+        "topic": ""
+      },
+      "generation": {
+        "prompt": "Write VEX that displaces each point along its surface normal by a controllable amount using a channel parameter named 'amplitude'.",
+        "alternative_prompts": [
+          "How do I offset points in Houdini VEX based on their normal direction with an adjustable amplitude?",
+          "Create a displacement effect in VEX where points move along @N scaled by a user-defined channel value called amplitude.",
+          "Generate VEX code that moves geometry vertices along their normals using a parameter-controlled distance."
+        ],
+        "explanation": "This VEX snippet modifies the current point's position by translating it along its normal direction. The `@P` attribute represents the point's position, `@N` is the surface normal at that point, and `ch(\"amplitude\")` retrieves a user-defined channel parameter named 'amplitude' from the node's parameters. Multiplying the normal by this amplitude value scales the displacement magnitude, which is then added to the original position to push the point outward along the normal.",
+        "difficulty": 1
+      },
+      "quality": {
+        "flagged_for_review": false,
+        "review_reason": ""
+      }
+    }
+  ]
+}

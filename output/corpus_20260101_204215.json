@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-01T20:42:15.787699",
+    "sample_count": 1
+  },
+  "samples": [
+    {
+      "id": "vex_83659f3d62e3234c",
+      "code": "int h = pcopen(0, \"P\", @P, 1.0, 10); pcclose(h);",
+      "source_file": "C:\\Users\\User\\vex-corpus\\input\\test2.vex",
+      "source_line": 1,
+      "hash": "83659f3d62e3234c",
+      "created_at": "2026-01-01T20:38:41.380310",
+      "stage": "complete",
+      "classification": {
+        "context": "point",
+        "context_confidence": 1.0,
+        "attributes_read": [
+          {
+            "name": "@P",
+            "type": "int",
+            "builtin": true
+          }
+        ],
+        "attributes_written": [],
+        "channels": [],
+        "functions": [],
+        "bugs": [],
+        "complexity": "O(1)",
+        "topic": ""
+      },
+      "generation": {
+        "prompt": "Write a VEX snippet that counts and stores the number of points within a radius of 1.0 unit from each point in the current geometry using proximity search.",
+        "alternative_prompts": [
+          "How can I count nearby points within a certain radius in VEX?",
+          "Create a VEX expression that finds all points within 1 unit and returns their count per point",
+          "Generate code to perform a nearest point search limited to 10 results with a max distance of 1.0"
+        ],
+        "explanation": "This VEX snippet performs a point cloud query to find the nearest point within a radius of 1.0 unit from the current point's position (@P). It opens a point cloud search using pcopen on geometry stream 0 (the default), filtering points by their 'P' attribute (position) within 1.0 distance, and limited to return at most 1 closest point. The handle 'h' is then immediately closed with pcclose() to avoid resource leaks.",
+        "difficulty": 3
+      },
+      "quality": {
+        "flagged_for_review": false,
+        "review_reason": ""
+      }
+    }
+  ]
+}

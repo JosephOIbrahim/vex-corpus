@@ -1,0 +1,1 @@
+{"prompt": "Write VEX that displaces each point along its surface normal by a controllable amount using a channel parameter named 'amplitude'.", "completion": "@P += @N * ch(\"amplitude\");", "metadata": {"context": "point", "difficulty": 1, "topic": ""}}

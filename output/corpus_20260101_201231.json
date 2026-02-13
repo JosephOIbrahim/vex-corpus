@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-01T20:12:31.313011",
+    "sample_count": 1
+  },
+  "samples": [
+    {
+      "id": "vex_cdd9d0272bac45a9",
+      "code": "@P += @N * ch(\"amplitude\");",
+      "source_file": "input\\test1.vex",
+      "source_line": 1,
+      "hash": "cdd9d0272bac45a9",
+      "created_at": "2026-01-01T20:10:53.064802",
+      "stage": "complete",
+      "classification": {
+        "context": "point",
+        "context_confidence": 0.95,
+        "attributes_read": [],
+        "attributes_written": [],
+        "channels": [],
+        "functions": [],
+        "bugs": [],
+        "complexity": "O(1)",
+        "topic": "attribute_operations"
+      },
+      "generation": {
+        "prompt": "",
+        "alternative_prompts": [],
+        "explanation": "",
+        "difficulty": 0
+      },
+      "quality": {
+        "flagged_for_review": false,
+        "review_reason": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-01T20:03:04.834546",
+    "sample_count": 1
+  },
+  "samples": [
+    {
+      "id": "vex_83659f3d62e3234c",
+      "code": "int h = pcopen(0, \"P\", @P, 1.0, 10); pcclose(h);",
+      "source_file": "input\\test2.vex",
+      "source_line": 1,
+      "hash": "83659f3d62e3234c",
+      "created_at": "2026-01-01T20:01:26.842943",
+      "stage": "complete",
+      "classification": {
+        "context": "",
+        "context_confidence": 0.0,
+        "attributes_read": [
+          {
+            "name": "@P",
+            "type": "int",
+            "builtin": true
+          }
+        ],
+        "attributes_written": [],
+        "channels": [],
+        "functions": [],
+        "bugs": [],
+        "complexity": "",
+        "topic": "point_cloud_ops"
+      },
+      "generation": {
+        "prompt": "",
+        "alternative_prompts": [],
+        "explanation": "",
+        "difficulty": 0
+      },
+      "quality": {
+        "flagged_for_review": true,
+        "review_reason": "Low confidence: 0.00"
+      }
+    }
+  ]
+}

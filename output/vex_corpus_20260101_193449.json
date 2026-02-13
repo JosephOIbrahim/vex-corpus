@@ -1,0 +1,94 @@
+{
+  "metadata": {
+    "generated_at": "2026-01-01T19:34:49.215450",
+    "total_samples": 2,
+    "flagged_for_review": 0
+  },
+  "samples": [
+    {
+      "id": "vex_cdd9d0272bac45a9",
+      "code": "@P += @N * ch(\"amplitude\");",
+      "source_file": "input\\test1.vex",
+      "source_line": 1,
+      "hash": "cdd9d0272bac45a9",
+      "created_at": "2026-01-01T19:32:02.256416",
+      "stage": "complete",
+      "classification": {
+        "context": "point",
+        "context_confidence": 1.0,
+        "attributes_read": [
+          {
+            "name": "@N",
+            "type": "int",
+            "builtin": true
+          }
+        ],
+        "attributes_written": [],
+        "channels": [],
+        "functions": [
+          {
+            "name": "@P += @N * ch(\"amplitude\")",
+            "category": "channel",
+            "count": 1
+          }
+        ],
+        "bugs": [
+          {
+            "type": "integer_division",
+            "severity": "error",
+            "description": "1/2 = 0, should be 1.0/2.0",
+            "suggestion": ""
+          }
+        ],
+        "complexity": "",
+        "topic": "attribute_operations"
+      },
+      "generation": {
+        "prompt": "",
+        "alternative_prompts": [],
+        "explanation": "",
+        "difficulty": 0
+      },
+      "quality": {
+        "flagged_for_review": false,
+        "review_reason": ""
+      }
+    },
+    {
+      "id": "vex_83659f3d62e3234c",
+      "code": "int h = pcopen(0, \"P\", @P, 1.0, 10); pcclose(h);",
+      "source_file": "input\\test2.vex",
+      "source_line": 1,
+      "hash": "83659f3d62e3234c",
+      "created_at": "2026-01-01T19:32:02.256416",
+      "stage": "complete",
+      "classification": {
+        "context": "point",
+        "context_confidence": 1.0,
+        "attributes_read": [
+          {
+            "name": "@P",
+            "type": "int",
+            "builtin": true
+          }
+        ],
+        "attributes_written": [],
+        "channels": [],
+        "functions": [],
+        "bugs": [],
+        "complexity": "",
+        "topic": "point_cloud_ops"
+      },
+      "generation": {
+        "prompt": "",
+        "alternative_prompts": [],
+        "explanation": "",
+        "difficulty": 0
+      },
+      "quality": {
+        "flagged_for_review": false,
+        "review_reason": ""
+      }
+    }
+  ]
+}
