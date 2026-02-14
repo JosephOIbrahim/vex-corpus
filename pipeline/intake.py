@@ -63,6 +63,22 @@ class VEXSample:
     flagged_for_review: bool = False
     review_reason: str = ""
 
+    # v2 fields (added in Phase 0 -- defaults preserve backward compat)
+    content_type: str = ""          # concept|pattern|reference|troubleshooting|discussion
+    difficulty_label: str = ""      # beginner|intermediate|advanced|expert
+    vex_context: list = field(default_factory=list)  # [sop, dop, cop, ...]
+    source_id: str = ""             # maps to config/sources.yaml
+    source_authority: float = 0.0   # 0.0-1.0
+    title: str = ""                 # human-readable chunk title
+    section: str = ""               # section within source
+    functions_referenced: list = field(default_factory=list)  # static-analysis extracted
+    houdini_version_min: str = ""
+    houdini_version_notes: str = ""
+    prerequisites: list = field(default_factory=list)
+    pipeline_version: str = ""
+    checksum: str = ""
+    validation_warnings: list = field(default_factory=list)
+
     def __post_init__(self):
         if not self.hash:
             self.hash = hashlib.sha256(self.code.encode()).hexdigest()[:16]
@@ -70,8 +86,12 @@ class VEXSample:
             self.id = f"vex_{self.hash}"
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for JSON export."""
-        return {
+        """Convert to dictionary for JSON export.
+
+        Maintains the nested v1 structure for backward compat, with v2
+        fields added at the top level alongside the nested groups.
+        """
+        d = {
             "id": self.id,
             "code": self.code,
             "source_file": self.source_file,
@@ -99,8 +119,49 @@ class VEXSample:
             "quality": {
                 "flagged_for_review": self.flagged_for_review,
                 "review_reason": self.review_reason,
-            }
+            },
         }
+        # v2 fields (only included when populated, to keep v1 exports clean)
+        v2 = {}
+        if self.content_type:
+            v2["content_type"] = self.content_type
+        if self.difficulty_label:
+            v2["difficulty_label"] = self.difficulty_label
+        if self.vex_context:
+            v2["vex_context"] = self.vex_context
+        if self.source_id:
+            v2["source_id"] = self.source_id
+        if self.source_authority > 0:
+            v2["source_authority"] = self.source_authority
+        if self.title:
+            v2["title"] = self.title
+        if self.section:
+            v2["section"] = self.section
+        if self.functions_referenced:
+            v2["functions_referenced"] = self.functions_referenced
+        if self.houdini_version_min:
+            v2["houdini_version_min"] = self.houdini_version_min
+        if self.houdini_version_notes:
+            v2["houdini_version_notes"] = self.houdini_version_notes
+        if self.prerequisites:
+            v2["prerequisites"] = self.prerequisites
+        if self.pipeline_version:
+            v2["pipeline_version"] = self.pipeline_version
+        if self.checksum:
+            v2["checksum"] = self.checksum
+        if self.validation_warnings:
+            v2["validation_warnings"] = self.validation_warnings
+        if v2:
+            d["v2"] = v2
+        return d
+
+    def to_chunk_v2(self):
+        """Convert to the canonical ChunkV2 schema.
+
+        Import is deferred to avoid circular imports at module level.
+        """
+        from pipeline.schema import migrate_v1_sample
+        return migrate_v1_sample(self.to_dict())
 
     def to_training_pair(self) -> dict | None:
         """Convert to training data format (prompt, completion)."""

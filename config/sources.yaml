@@ -1,0 +1,103 @@
+# VEX Corpus - Source Registry
+#
+# Each source has:
+#   id:                 Unique identifier used in chunk source_id fields
+#   name:               Human-readable name
+#   type:               youtube_transcript | web_scrape | github_wiki | local_skill
+#   url/path:           Where to find the source material
+#   authority:          0.0-1.0 trust weight (see docs/SOURCES.md for scale)
+#   difficulty_range:   [min, max] difficulty levels present in this source
+#   vex_contexts:       VEX contexts covered (sop, dop, cop, chop, cvex, material, solver)
+#   houdini_version_era: Approximate Houdini version range the content targets
+#   status:             active | planned | deprecated
+
+sources:
+  - id: joy-of-vex-youtube
+    name: "Joy of VEX (YouTube - Peter Arcara)"
+    type: youtube_transcript
+    url: "https://youtube.com/playlist?list=PLTXmnikJEYnBtSfn4LwKx5vpopwrInp18"
+    authority: 0.9
+    difficulty_range: [beginner, intermediate]
+    vex_contexts: [sop]
+    houdini_version_era: "18.0-19.5"
+    status: active
+    notes: >
+      Matt Estela's Joy of VEX tutorial series, recorded by Peter Arcara
+      (SideFX). Imported via scripts/import_joy_of_vex.py. 1,633 chunks.
+      Over-granular segmentation from timestamp-based chunking.
+
+  - id: cgwiki-vex
+    name: "tokeru.com cgwiki - VEX pages"
+    type: web_scrape
+    url: "https://tokeru.com/cgwiki/"
+    authority: 0.95
+    difficulty_range: [beginner, advanced]
+    vex_contexts: [sop, dop, cop]
+    houdini_version_era: "16.0-20.5"
+    status: planned
+    pages:
+      - "https://tokeru.com/cgwiki/JoyOfVex.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex01.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex02.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex03.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex04.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex05.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex06.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex07.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex08.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex09.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex10.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex11.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex12.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex13.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex14.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex15.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex16.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex17.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex18.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex19.html"
+      - "https://tokeru.com/cgwiki/JoyOfVex20.html"
+      - "https://tokeru.com/cgwiki/HoudiniVex.html"
+    notes: >
+      The original text versions of Joy of VEX by Matt Estela, plus the
+      HoudiniVex tips page. Higher quality than YouTube transcript extraction.
+      Highest-priority new source.
+
+  - id: sidefx-vex-reference
+    name: "SideFX VEX Function Reference"
+    type: web_scrape
+    url: "https://www.sidefx.com/docs/houdini/vex/functions/"
+    authority: 1.0
+    difficulty_range: [reference]
+    vex_contexts: [all]
+    houdini_version_era: "20.5"
+    status: planned
+    notes: >
+      Official VEX function reference. One chunk per function with signature,
+      description, parameters, return type, example code, and context
+      availability. May need local HTML fallback if scraping is blocked.
+
+  - id: kiryha-vex-artists
+    name: "VEX for Artists (kiryha)"
+    type: github_wiki
+    url: "https://github.com/kiryha/Houdini/wiki/vex-for-artists"
+    authority: 0.7
+    difficulty_range: [beginner, intermediate]
+    vex_contexts: [sop]
+    houdini_version_era: "18.0-19.5"
+    status: planned
+    notes: >
+      Community wiki with beginner-friendly VEX explanations and examples.
+
+  - id: vex-pattern-library
+    name: "Production VEX Pattern Library"
+    type: local_skill
+    path: "~/.claude/skills/vex-pattern-library/"
+    authority: 0.85
+    difficulty_range: [intermediate, expert]
+    vex_contexts: [sop, dop]
+    houdini_version_era: "20.0-20.5"
+    status: planned
+    notes: >
+      Production-tested VEX patterns from real projects. Self-authored,
+      covers advanced topics like solver patterns and packed prims.
