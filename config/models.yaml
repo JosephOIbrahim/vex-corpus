@@ -3,7 +3,9 @@
 #
 # Model Benchmark Results:
 #   nemotron-mini (4.2B):   1.1s avg, 119 tok/s  -> Tier 1
-#   nemotron-3-nano (31.6B): 15.9s avg, 27 tok/s -> Tier 2 (OPTIMAL)
+#   nemotron-3-nano (31.6B): 15.9s avg, 27 tok/s -> Tier 2
+#   kimi-k2.5 (cloud):     ~2-5s avg, cloud API  -> Tier 2 (preferred)
+#   gpt-oss (20.9B):       ~8s avg, MXFP4        -> Tier 2 fallback
 #   nemotron (70.6B):       35.8s avg, 3.4 tok/s -> Too slow, fallback only
 
 ollama:
@@ -11,13 +13,14 @@ ollama:
   keep_alive: "24h"
   max_loaded_models: 2
 
-# Model Tier Assignments - ALL NEMOTRON FAMILY
+# Model Tier Assignments
 models:
   tier1:
     # Fast classification - 4.2B runs at 119 tok/s
     primary: "nemotron-mini:latest"
     fallbacks:
-      - "nemotron-3-nano:latest"  # Fallback to nano if mini fails
+      - "gpt-oss:20b"             # Fast MXFP4 fallback
+      - "nemotron-3-nano:latest"   # Fallback to nano if others fail
     config:
       temperature: 0.1
       top_p: 0.9
@@ -25,10 +28,11 @@ models:
       format: "json"
 
   tier2:
-    # Generation tasks - 31.6B is 2.2x faster than 70B with good quality
-    primary: "nemotron-3-nano:latest"
+    # Generation tasks - kimi-k2.5 cloud for quality, nano for local fallback
+    primary: "kimi-k2.5:cloud"
     fallbacks:
-      - "nemotron:latest"         # Full 70B as last resort
+      - "nemotron-3-nano:latest"   # Local fallback
+      - "gpt-oss:20b"             # Second fallback
       - "nemotron-mini:latest"    # Fast fallback if all else fails
     config:
       temperature: 0.3
@@ -46,37 +50,37 @@ tasks:
   # Expected: ~1-2s per task, 40+ tasks/minute
   classify_wrangle:
     tier: 1
-    timeout_seconds: 15
+    timeout_seconds: 45
     retries: 2
     consensus: false
 
   extract_attributes:
     tier: 1
-    timeout_seconds: 15
+    timeout_seconds: 45
     retries: 2
     consensus: false
 
   extract_functions:
     tier: 1
-    timeout_seconds: 15
+    timeout_seconds: 45
     retries: 2
     consensus: false
 
   detect_bugs:
     tier: 1
-    timeout_seconds: 20
+    timeout_seconds: 60
     retries: 2
     consensus: true
 
   estimate_complexity:
     tier: 1
-    timeout_seconds: 15
+    timeout_seconds: 45
     retries: 2
     consensus: true
 
   classify_topic:
     tier: 1
-    timeout_seconds: 15
+    timeout_seconds: 45
     retries: 2
     consensus: true
 
@@ -84,37 +88,37 @@ tasks:
   # Expected: ~15-30s per task, 3-4 tasks/minute
   generate_prompt:
     tier: 2
-    timeout_seconds: 60
+    timeout_seconds: 90
     retries: 2
     consensus: false
 
   generate_explanation:
     tier: 2
-    timeout_seconds: 90
+    timeout_seconds: 120
     retries: 2
     consensus: false
 
   inject_bug:
     tier: 2
-    timeout_seconds: 60
+    timeout_seconds: 90
     retries: 2
     consensus: false
 
   paraphrase_prompt:
     tier: 2
-    timeout_seconds: 45
+    timeout_seconds: 60
     retries: 2
     consensus: false
 
   rate_difficulty:
     tier: 2
-    timeout_seconds: 45
+    timeout_seconds: 60
     retries: 2
     consensus: true
 
   infer_context:
     tier: 2
-    timeout_seconds: 60
+    timeout_seconds: 90
     retries: 2
     consensus: false
 

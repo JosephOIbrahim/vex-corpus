@@ -26,6 +26,8 @@ import sys
 import time
 from pathlib import Path
 
+import httpx
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -48,7 +50,48 @@ TIER1_DONE_FIELDS = ["llm_topic", "llm_bugs", "llm_complexity"]
 TIER2_DONE_FIELDS = ["prompt", "explanation"]
 
 # Default concurrency per tier
-DEFAULT_CONCURRENCY = {1: 5, 2: 2}
+DEFAULT_CONCURRENCY = {1: 3, 2: 2}
+
+# Combined Tier 1 prompt -- single call does all 3 tasks
+COMBINED_TIER1_SYSTEM = """You are a VEX (Houdini's Vector Expression Language) code analyzer.
+Analyze the VEX code and provide ALL THREE analyses in a single JSON response.
+
+Topics: point_cloud_ops, optimization_patterns, field_analysis, flow_visualization,
+edge_topology, subdivision_surfaces, attribute_operations, debugging_patterns,
+math_operations, color_operations, string_operations, geometry_creation,
+noise_patterns, channel_references, matrix_transforms, quaternion_operations,
+loop_patterns, conditional_logic, simulation_setup, rendering_setup
+
+Common VEX bugs:
+- resource_leak: pcopen() without pcclose()
+- context_confusion: @ptnum in prim context
+- type_mismatch: float to vector
+- integer_division: 1/2 = 0
+- uninitialized_attr: reading missing @attr
+
+Complexity: O(1) no loops | O(n) single pass | O(n log n) KD-tree | O(n^2) nested loops
+
+Respond with ONLY valid JSON:
+{
+  "topic": {"primary": "...", "secondary": [], "confidence": 0.9},
+  "bugs": {"issues": [{"type": "...", "severity": "error|warning|info", "description": "..."}], "quality": "clean|minor_issues|major_issues"},
+  "complexity": {"class": "O(1)|O(n)|O(n log n)|O(n^2)", "bottlenecks": [], "confidence": 0.9}
+}"""
+
+# Combined Tier 2 prompt -- single call for prompt + explanation
+COMBINED_TIER2_SYSTEM = """You are a VEX training data generator for Houdini.
+Given VEX code, provide BOTH a natural language prompt AND an explanation.
+
+The prompt should be what a student would ask to produce this code.
+The explanation should teach what the code does and why.
+
+Respond with ONLY valid JSON:
+{
+  "prompt": "A natural instruction that would lead to writing this code",
+  "alternative_prompts": ["2-3 alternative phrasings"],
+  "explanation": "Clear explanation of what this code does and why each part matters",
+  "key_concepts": ["list of VEX concepts used"]
+}"""
 
 
 # ---------------------------------------------------------------------------
@@ -90,96 +133,160 @@ def needs_tier2(chunk: dict) -> bool:
 # Task processing
 # ---------------------------------------------------------------------------
 
-async def process_tier1_chunk(
-    dispatcher: TaskDispatcher,
+async def process_tier1_combined(
+    http_client: httpx.AsyncClient,
+    base_url: str,
+    model: str,
     chunk: dict,
     semaphore: asyncio.Semaphore,
+    config: dict,
 ) -> dict:
-    """Run all Tier 1 tasks on a single chunk."""
+    """Run all Tier 1 tasks in a SINGLE Ollama call."""
     async with semaphore:
-        cid = chunk.get("id", "?")
         code = _get_code(chunk)
-        input_data = {"code": code}
-        results = {}
+        prompt = f"VEX Code:\n```vex\n{code}\n```\n\nAnalyze this VEX code."
 
-        for task_type in TIER1_TASKS:
-            try:
-                # Use process_task directly (bypasses consensus for speed)
-                result = await dispatcher.client.process_task(
-                    task_type, input_data, task_id=cid,
-                )
-                if result.status.value == "success":
-                    results[task_type] = result.result
-                    results[f"{task_type}_confidence"] = result.confidence
-            except Exception as e:
-                results[f"{task_type}_error"] = str(e)
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "system": COMBINED_TIER1_SYSTEM,
+            "stream": False,
+            "options": {
+                "temperature": config.get("temperature", 0.1),
+                "top_p": config.get("top_p", 0.9),
+                "num_predict": config.get("num_predict", 1024),
+            },
+            "format": "json",
+        }
 
-        return results
+        try:
+            response = await http_client.post(
+                f"{base_url}/api/generate",
+                json=payload,
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("response", "").strip()
+
+            # Parse JSON from response
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+            content = content.strip()
+
+            parsed = json.loads(content)
+            return {"combined": parsed}
+        except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            return {"error": f"HTTP: {e}"}
+        except json.JSONDecodeError as e:
+            return {"error": f"JSON parse: {e}", "raw": content[:200] if content else ""}
+        except Exception as e:
+            return {"error": str(e)}
 
 
-async def process_tier2_chunk(
-    dispatcher: TaskDispatcher,
+async def process_tier2_combined(
+    http_client: httpx.AsyncClient,
+    base_url: str,
+    model: str,
     chunk: dict,
     semaphore: asyncio.Semaphore,
+    config: dict,
 ) -> dict:
-    """Run Tier 2 tasks on a single chunk."""
+    """Run Tier 2 tasks (prompt + explanation) in a SINGLE Ollama call."""
     async with semaphore:
-        cid = chunk.get("id", "?")
         code = _get_code(chunk)
-        input_data = {"code": code}
-        results = {}
+        prompt = f"VEX Code:\n```vex\n{code}\n```\n\nGenerate a training prompt and explanation."
 
-        for task_type in TIER2_TASKS:
-            # Skip if chunk already has this field
-            if task_type == "generate_prompt" and chunk.get("prompt"):
-                continue
-            if task_type == "generate_explanation" and chunk.get("explanation"):
-                continue
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "system": COMBINED_TIER2_SYSTEM,
+            "stream": False,
+            "options": {
+                "temperature": config.get("temperature", 0.3),
+                "top_p": config.get("top_p", 0.95),
+                "num_predict": config.get("num_predict", 2048),
+            },
+            "format": "json",
+        }
 
-            try:
-                result = await dispatcher.client.process_task(
-                    task_type, input_data, task_id=cid,
-                )
-                if result.status.value == "success":
-                    results[task_type] = result.result
-                    results[f"{task_type}_confidence"] = result.confidence
-                    # Flag low confidence
-                    if dispatcher.should_flag_for_review(result):
-                        results[f"{task_type}_flagged"] = True
-            except Exception as e:
-                results[f"{task_type}_error"] = str(e)
+        try:
+            response = await http_client.post(
+                f"{base_url}/api/generate",
+                json=payload,
+                timeout=120.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("response", "").strip()
 
-        return results
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+            content = content.strip()
+
+            parsed = json.loads(content)
+            return {"combined": parsed}
+        except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            return {"error": f"HTTP: {e}"}
+        except json.JSONDecodeError as e:
+            return {"error": f"JSON parse: {e}", "raw": content[:200] if content else ""}
+        except Exception as e:
+            return {"error": str(e)}
 
 
 def apply_tier1_results(chunk: dict, results: dict) -> list[str]:
     """Apply Tier 1 LLM results to a chunk. Returns list of changes."""
     changes = []
 
-    # classify_topic
-    topic_result = results.get("classify_topic", {})
-    if topic_result:
-        chunk["llm_topic"] = topic_result.get("primary_topic", "")
-        chunk["llm_secondary_topics"] = topic_result.get("secondary_topics", [])
+    if "error" in results:
+        changes.append(f"ERROR: {results['error'][:80]}")
+        return changes
+
+    combined = results.get("combined", {})
+
+    # Topic classification — handle varying response shapes
+    topic = combined.get("topic", {})
+    if isinstance(topic, str):
+        chunk["llm_topic"] = topic
+        chunk["llm_secondary_topics"] = []
+    elif isinstance(topic, dict):
+        chunk["llm_topic"] = topic.get("primary", topic.get("primary_topic", ""))
+        chunk["llm_secondary_topics"] = topic.get("secondary", topic.get("secondary_topics", []))
+    if chunk.get("llm_topic"):
         changes.append(f"topic: {chunk['llm_topic']}")
 
-    # detect_bugs
-    bugs_result = results.get("detect_bugs", {})
-    if bugs_result:
-        bugs = bugs_result.get("bugs", [])
+    # Bug detection — model may return list or dict
+    bugs = combined.get("bugs", {})
+    if isinstance(bugs, list):
         chunk["llm_bugs"] = bugs
-        chunk["llm_code_quality"] = bugs_result.get("overall_quality", "unknown")
-        if bugs:
-            changes.append(f"bugs: {len(bugs)} found")
+        chunk["llm_code_quality"] = "minor_issues" if bugs else "clean"
+    elif isinstance(bugs, dict):
+        issues = bugs.get("issues", bugs.get("bugs", []))
+        if isinstance(issues, list):
+            chunk["llm_bugs"] = issues
         else:
-            changes.append("bugs: clean")
+            chunk["llm_bugs"] = []
+        chunk["llm_code_quality"] = bugs.get("quality", bugs.get("overall_quality", "unknown"))
+    else:
+        chunk["llm_bugs"] = []
+        chunk["llm_code_quality"] = "unknown"
+    n_bugs = len(chunk.get("llm_bugs", []))
+    changes.append(f"bugs: {n_bugs}" if n_bugs else "clean")
 
-    # estimate_complexity
-    complexity_result = results.get("estimate_complexity", {})
-    if complexity_result:
-        chunk["llm_complexity"] = complexity_result.get("complexity", "unknown")
-        chunk["llm_bottlenecks"] = complexity_result.get("bottlenecks", [])
-        changes.append(f"complexity: {chunk['llm_complexity']}")
+    # Complexity estimation — handle varying shapes
+    complexity = combined.get("complexity", {})
+    if isinstance(complexity, str):
+        chunk["llm_complexity"] = complexity
+        chunk["llm_bottlenecks"] = []
+    elif isinstance(complexity, dict):
+        chunk["llm_complexity"] = complexity.get("class", complexity.get("complexity", "unknown"))
+        chunk["llm_bottlenecks"] = complexity.get("bottlenecks", [])
+    if chunk.get("llm_complexity"):
+        changes.append(chunk["llm_complexity"])
 
     return changes
 
@@ -188,36 +295,32 @@ def apply_tier2_results(chunk: dict, results: dict) -> list[str]:
     """Apply Tier 2 LLM results to a chunk. Returns list of changes."""
     changes = []
 
-    # generate_prompt
-    prompt_result = results.get("generate_prompt", {})
-    if prompt_result:
-        prompt = prompt_result.get("prompt", "")
-        if prompt and not chunk.get("prompt"):
-            chunk["prompt"] = prompt
-            changes.append(f"prompt: {prompt[:60]}...")
-        alt = prompt_result.get("alternative_phrasings", [])
-        if alt and not chunk.get("alternative_prompts"):
-            chunk["alternative_prompts"] = alt
-            changes.append(f"alt_prompts: {len(alt)}")
+    if "error" in results:
+        changes.append(f"ERROR: {results['error'][:80]}")
+        return changes
 
-    # generate_explanation
-    explanation_result = results.get("generate_explanation", {})
-    if explanation_result:
-        explanation = explanation_result.get("explanation", "")
-        if explanation and not chunk.get("explanation"):
-            chunk["explanation"] = explanation
-            changes.append(f"explanation: {len(explanation)} chars")
-        concepts = explanation_result.get("key_concepts", [])
-        if concepts:
-            chunk["llm_key_concepts"] = concepts
+    combined = results.get("combined", {})
 
-    # Flag for review if any task was flagged
-    for key in results:
-        if key.endswith("_flagged") and results[key]:
-            chunk["flagged_for_review"] = True
-            chunk["review_reason"] = chunk.get("review_reason", "") + " Low LLM confidence."
-            changes.append("FLAGGED for review")
-            break
+    # Prompt
+    prompt = combined.get("prompt", "")
+    if prompt and not chunk.get("prompt"):
+        chunk["prompt"] = prompt
+        changes.append(f"prompt: {prompt[:50]}...")
+
+    alt = combined.get("alternative_prompts", [])
+    if alt and not chunk.get("alternative_prompts"):
+        chunk["alternative_prompts"] = alt
+        changes.append(f"alt: {len(alt)}")
+
+    # Explanation
+    explanation = combined.get("explanation", "")
+    if explanation and not chunk.get("explanation"):
+        chunk["explanation"] = explanation
+        changes.append(f"expl: {len(explanation)}ch")
+
+    concepts = combined.get("key_concepts", [])
+    if concepts:
+        chunk["llm_key_concepts"] = concepts
 
     return changes
 
@@ -283,7 +386,7 @@ async def enrich_with_llm(
                       f"explanation={'yes' if c.get('explanation') else 'no'}")
         return {"tier1_pending": len(tier1_chunks), "tier2_pending": len(tier2_chunks)}
 
-    # Initialize Ollama client
+    # Initialize Ollama client (for health check only)
     client = OllamaClient()
     health = await client.health_check()
     print(f"\nOllama status: {health['status']}")
@@ -292,84 +395,91 @@ async def enrich_with_llm(
         return {}
     print(f"  Available models: {', '.join(health['available_models'])}")
 
-    dispatcher = TaskDispatcher(client=client)
+    # Load model config
+    base_url = client.base_url
+    t1_model_config = client.get_model_for_tier(1)
+    t2_model_config = client.get_model_for_tier(2)
+
     stats = {"tier1_processed": 0, "tier2_processed": 0, "errors": 0, "flagged": 0}
 
-    # Index chunks by ID for update
-    chunk_index = {c.get("id", ""): c for c in chunks}
+    # Use a SHARED httpx client for connection pooling
+    async with httpx.AsyncClient() as http_client:
 
-    # --- Tier 1 ---
-    if run_tier1 and tier1_chunks:
-        t1_concurrency = concurrency or DEFAULT_CONCURRENCY[1]
-        semaphore = asyncio.Semaphore(t1_concurrency)
-        print(f"\n{'='*50}")
-        print(f"TIER 1: Processing {len(tier1_chunks)} chunks (concurrency={t1_concurrency})")
-        print(f"{'='*50}")
+        # --- Tier 1 ---
+        if run_tier1 and tier1_chunks:
+            t1_concurrency = concurrency or DEFAULT_CONCURRENCY[1]
+            semaphore = asyncio.Semaphore(t1_concurrency)
+            model = t1_model_config.primary
+            config = dict(t1_model_config.config)
+            print(f"\n{'='*50}")
+            print(f"TIER 1: Processing {len(tier1_chunks)} chunks")
+            print(f"  Model: {model}, Concurrency: {t1_concurrency}")
+            print(f"{'='*50}")
 
-        t0 = time.time()
-        batch_size = 20
-        for batch_start in range(0, len(tier1_chunks), batch_size):
-            batch = tier1_chunks[batch_start:batch_start + batch_size]
-            tasks = [
-                process_tier1_chunk(dispatcher, c, semaphore)
-                for c in batch
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            t0 = time.time()
+            completed = 0
+            total = len(tier1_chunks)
 
-            for chunk, result in zip(batch, results):
+            async def _process_t1(chunk):
+                nonlocal completed
                 cid = chunk.get("id", "?")
-                if isinstance(result, Exception):
-                    print(f"  ERROR {cid}: {result}")
+                try:
+                    result = await process_tier1_combined(
+                        http_client, base_url, model, chunk, semaphore, config,
+                    )
+                    changes = apply_tier1_results(chunk, result)
+                    if changes and "ERROR" not in changes[0]:
+                        stats["tier1_processed"] += 1
+                    elif "ERROR" in (changes[0] if changes else ""):
+                        stats["errors"] += 1
+                    completed += 1
+                    elapsed = time.time() - t0
+                    rate = completed / elapsed if elapsed > 0 else 0
+                    remaining = (total - completed) / rate if rate > 0 else 0
+                    print(f"  [{completed}/{total}] {cid}: {', '.join(changes)} ({rate:.2f}/s, ~{remaining/60:.0f}m)", flush=True)
+                except Exception as e:
+                    print(f"  ERROR {cid}: {e}", flush=True)
                     stats["errors"] += 1
-                    continue
 
-                changes = apply_tier1_results(chunk, result)
-                if changes:
-                    stats["tier1_processed"] += 1
-                    print(f"  {cid}: {', '.join(changes)}")
+            await asyncio.gather(*[_process_t1(c) for c in tier1_chunks])
 
-            elapsed = time.time() - t0
-            processed = min(batch_start + batch_size, len(tier1_chunks))
-            rate = processed / elapsed if elapsed > 0 else 0
-            print(f"  [{processed}/{len(tier1_chunks)}] {rate:.1f} chunks/s")
+        # --- Tier 2 ---
+        if run_tier2 and tier2_chunks:
+            t2_concurrency = concurrency or DEFAULT_CONCURRENCY[2]
+            semaphore = asyncio.Semaphore(t2_concurrency)
+            model = t2_model_config.primary
+            config = dict(t2_model_config.config)
+            print(f"\n{'='*50}")
+            print(f"TIER 2: Processing {len(tier2_chunks)} chunks")
+            print(f"  Model: {model}, Concurrency: {t2_concurrency}")
+            print(f"{'='*50}")
 
-    # --- Tier 2 ---
-    if run_tier2 and tier2_chunks:
-        t2_concurrency = concurrency or DEFAULT_CONCURRENCY[2]
-        semaphore = asyncio.Semaphore(t2_concurrency)
-        print(f"\n{'='*50}")
-        print(f"TIER 2: Processing {len(tier2_chunks)} chunks (concurrency={t2_concurrency})")
-        print(f"{'='*50}")
+            t0 = time.time()
+            completed = 0
+            total = len(tier2_chunks)
 
-        t0 = time.time()
-        batch_size = 5
-        for batch_start in range(0, len(tier2_chunks), batch_size):
-            batch = tier2_chunks[batch_start:batch_start + batch_size]
-            tasks = [
-                process_tier2_chunk(dispatcher, c, semaphore)
-                for c in batch
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for chunk, result in zip(batch, results):
+            async def _process_t2(chunk):
+                nonlocal completed
                 cid = chunk.get("id", "?")
-                if isinstance(result, Exception):
-                    print(f"  ERROR {cid}: {result}")
+                try:
+                    result = await process_tier2_combined(
+                        http_client, base_url, model, chunk, semaphore, config,
+                    )
+                    changes = apply_tier2_results(chunk, result)
+                    if changes and "ERROR" not in changes[0]:
+                        stats["tier2_processed"] += 1
+                    elif "ERROR" in (changes[0] if changes else ""):
+                        stats["errors"] += 1
+                    completed += 1
+                    elapsed = time.time() - t0
+                    rate = completed / elapsed if elapsed > 0 else 0
+                    remaining = (total - completed) / rate if rate > 0 else 0
+                    print(f"  [{completed}/{total}] {cid}: {', '.join(changes)} ({rate:.2f}/s, ~{remaining/60:.0f}m)", flush=True)
+                except Exception as e:
+                    print(f"  ERROR {cid}: {e}", flush=True)
                     stats["errors"] += 1
-                    continue
 
-                changes = apply_tier2_results(chunk, result)
-                if changes:
-                    stats["tier2_processed"] += 1
-                    if chunk.get("flagged_for_review"):
-                        stats["flagged"] += 1
-                    print(f"  {cid}: {', '.join(changes)}")
-
-            elapsed = time.time() - t0
-            processed = min(batch_start + batch_size, len(tier2_chunks))
-            rate = processed / elapsed if elapsed > 0 else 0
-            remaining = (len(tier2_chunks) - processed) / rate if rate > 0 else 0
-            print(f"  [{processed}/{len(tier2_chunks)}] {rate:.1f} chunks/s, ~{remaining:.0f}s remaining")
+            await asyncio.gather(*[_process_t2(c) for c in tier2_chunks])
 
     # Write results
     print(f"\nWriting enriched corpus...")
