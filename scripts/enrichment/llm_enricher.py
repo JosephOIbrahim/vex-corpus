@@ -138,11 +138,10 @@ async def process_tier1_combined(
     base_url: str,
     model: str,
     chunk: dict,
-    semaphore: asyncio.Semaphore,
     config: dict,
 ) -> dict:
     """Run all Tier 1 tasks in a SINGLE Ollama call."""
-    async with semaphore:
+    if True:
         code = _get_code(chunk)
         prompt = f"VEX Code:\n```vex\n{code}\n```\n\nAnalyze this VEX code."
 
@@ -191,11 +190,10 @@ async def process_tier2_combined(
     base_url: str,
     model: str,
     chunk: dict,
-    semaphore: asyncio.Semaphore,
     config: dict,
 ) -> dict:
     """Run Tier 2 tasks (prompt + explanation) in a SINGLE Ollama call."""
-    async with semaphore:
+    if True:
         code = _get_code(chunk)
         prompt = f"VEX Code:\n```vex\n{code}\n```\n\nGenerate a training prompt and explanation."
 
@@ -401,6 +399,13 @@ async def enrich_with_llm(
     t2_model_config = client.get_model_for_tier(2)
 
     stats = {"tier1_processed": 0, "tier2_processed": 0, "errors": 0, "flagged": 0}
+    save_every = 50  # Checkpoint save every N chunks
+
+    def _save_corpus(label="checkpoint"):
+        with open(output_path, "w", encoding="utf-8") as f:
+            for chunk in chunks:
+                f.write(json.dumps(chunk, sort_keys=True, ensure_ascii=False) + "\n")
+        print(f"  ** {label}: saved {output_path}", flush=True)
 
     # Use a SHARED httpx client for connection pooling
     async with httpx.AsyncClient() as http_client:
@@ -414,34 +419,44 @@ async def enrich_with_llm(
             print(f"\n{'='*50}")
             print(f"TIER 1: Processing {len(tier1_chunks)} chunks")
             print(f"  Model: {model}, Concurrency: {t1_concurrency}")
+            print(f"  Checkpoint save every {save_every} chunks")
             print(f"{'='*50}")
 
             t0 = time.time()
             completed = 0
             total = len(tier1_chunks)
+            batch_size = save_every  # Process in batches, save after each
 
-            async def _process_t1(chunk):
-                nonlocal completed
-                cid = chunk.get("id", "?")
-                try:
-                    result = await process_tier1_combined(
-                        http_client, base_url, model, chunk, semaphore, config,
-                    )
-                    changes = apply_tier1_results(chunk, result)
-                    if changes and "ERROR" not in changes[0]:
-                        stats["tier1_processed"] += 1
-                    elif "ERROR" in (changes[0] if changes else ""):
-                        stats["errors"] += 1
+            for batch_start in range(0, total, batch_size):
+                batch = tier1_chunks[batch_start:batch_start + batch_size]
+                sem = asyncio.Semaphore(t1_concurrency)
+
+                async def _process_t1(chunk, _sem=sem):
+                    async with _sem:
+                        cid = chunk.get("id", "?")
+                        try:
+                            result = await process_tier1_combined(
+                                http_client, base_url, model, chunk, config,
+                            )
+                            changes = apply_tier1_results(chunk, result)
+                            if changes and "ERROR" not in changes[0]:
+                                stats["tier1_processed"] += 1
+                            elif "ERROR" in (changes[0] if changes else ""):
+                                stats["errors"] += 1
+                            return cid, changes
+                        except Exception as e:
+                            stats["errors"] += 1
+                            return cid, [f"ERROR: {e}"]
+
+                results = await asyncio.gather(*[_process_t1(c) for c in batch])
+                for cid, changes in results:
                     completed += 1
                     elapsed = time.time() - t0
                     rate = completed / elapsed if elapsed > 0 else 0
                     remaining = (total - completed) / rate if rate > 0 else 0
                     print(f"  [{completed}/{total}] {cid}: {', '.join(changes)} ({rate:.2f}/s, ~{remaining/60:.0f}m)", flush=True)
-                except Exception as e:
-                    print(f"  ERROR {cid}: {e}", flush=True)
-                    stats["errors"] += 1
 
-            await asyncio.gather(*[_process_t1(c) for c in tier1_chunks])
+                _save_corpus(f"checkpoint @{completed}/{total}")
 
         # --- Tier 2 ---
         if run_tier2 and tier2_chunks:
@@ -452,34 +467,44 @@ async def enrich_with_llm(
             print(f"\n{'='*50}")
             print(f"TIER 2: Processing {len(tier2_chunks)} chunks")
             print(f"  Model: {model}, Concurrency: {t2_concurrency}")
+            print(f"  Checkpoint save every {save_every} chunks")
             print(f"{'='*50}")
 
             t0 = time.time()
             completed = 0
             total = len(tier2_chunks)
+            batch_size = save_every
 
-            async def _process_t2(chunk):
-                nonlocal completed
-                cid = chunk.get("id", "?")
-                try:
-                    result = await process_tier2_combined(
-                        http_client, base_url, model, chunk, semaphore, config,
-                    )
-                    changes = apply_tier2_results(chunk, result)
-                    if changes and "ERROR" not in changes[0]:
-                        stats["tier2_processed"] += 1
-                    elif "ERROR" in (changes[0] if changes else ""):
-                        stats["errors"] += 1
+            for batch_start in range(0, total, batch_size):
+                batch = tier2_chunks[batch_start:batch_start + batch_size]
+                sem = asyncio.Semaphore(t2_concurrency)
+
+                async def _process_t2(chunk, _sem=sem):
+                    async with _sem:
+                        cid = chunk.get("id", "?")
+                        try:
+                            result = await process_tier2_combined(
+                                http_client, base_url, model, chunk, config,
+                            )
+                            changes = apply_tier2_results(chunk, result)
+                            if changes and "ERROR" not in changes[0]:
+                                stats["tier2_processed"] += 1
+                            elif "ERROR" in (changes[0] if changes else ""):
+                                stats["errors"] += 1
+                            return cid, changes
+                        except Exception as e:
+                            stats["errors"] += 1
+                            return cid, [f"ERROR: {e}"]
+
+                results = await asyncio.gather(*[_process_t2(c) for c in batch])
+                for cid, changes in results:
                     completed += 1
                     elapsed = time.time() - t0
                     rate = completed / elapsed if elapsed > 0 else 0
                     remaining = (total - completed) / rate if rate > 0 else 0
                     print(f"  [{completed}/{total}] {cid}: {', '.join(changes)} ({rate:.2f}/s, ~{remaining/60:.0f}m)", flush=True)
-                except Exception as e:
-                    print(f"  ERROR {cid}: {e}", flush=True)
-                    stats["errors"] += 1
 
-            await asyncio.gather(*[_process_t2(c) for c in tier2_chunks])
+                _save_corpus(f"checkpoint @{completed}/{total}")
 
     # Write results
     print(f"\nWriting enriched corpus...")
