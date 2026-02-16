@@ -3,6 +3,13 @@ __pycache__/
 *.pyo
 .venv/
 nul
-output/
+output/index/
+output/scrape/
+output/quality/
+output/cgwiki/
+output/local/
+output/sidefx_reference/
+output/enrichment.log
+output/corpus/tagging_log.jsonl
 logs/
 *.egg-info/

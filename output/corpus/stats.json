@@ -1,0 +1,23 @@
+{
+  "avg_chunk_length": 514,
+  "by_content_type": {
+    "concept": 1901,
+    "pattern": 7,
+    "reference": 605
+  },
+  "by_difficulty": {
+    "advanced": 221,
+    "beginner": 589,
+    "intermediate": 1703
+  },
+  "by_source": {
+    "cgwiki-vex": 191,
+    "joy-of-vex-youtube": 1633,
+    "sidefx-vex-reference": 605,
+    "vex-corpus-blueprints": 84
+  },
+  "total_chunks": 2513,
+  "total_code_blocks": 2436,
+  "unique_functions": 744,
+  "with_code": 2083
+}
