@@ -1,14 +1,45 @@
 {
-  "avg_chunk_length": 514,
   "by_content_type": {
-    "concept": 1901,
-    "pattern": 7,
-    "reference": 605
+    "concept": 1367,
+    "pattern": 458,
+    "reference": 678,
+    "troubleshooting": 10
   },
   "by_difficulty": {
-    "advanced": 221,
-    "beginner": 589,
-    "intermediate": 1703
+    "advanced": 251,
+    "beginner": 257,
+    "expert": 16,
+    "intermediate": 1989
+  },
+  "by_llm_topic": {
+    "array_ops": 1,
+    "assertions": 1,
+    "attribute_operations": 55,
+    "channel_references": 169,
+    "color_operations": 79,
+    "conditional_logic": 52,
+    "debugging_patterns": 1,
+    "edge_topology": 88,
+    "field_analysis": 15,
+    "flow_visualization": 61,
+    "geometry_creation": 161,
+    "loop_patterns": 12,
+    "math_operations": 981,
+    "matrix_transforms": 17,
+    "noise": 3,
+    "noise_operations": 1,
+    "noise_patterns": 41,
+    "noise_remap": 2,
+    "optimization_patterns": 1,
+    "point_cloud_ops": 318,
+    "point_creation": 1,
+    "point_operations": 1,
+    "primitive_ops": 2,
+    "quaternion_operations": 2,
+    "resource_leak": 3,
+    "simulation_setup": 3,
+    "string_operations": 6,
+    "subdivision_surfaces": 2
   },
   "by_source": {
     "cgwiki-vex": 191,
@@ -16,8 +47,13 @@
     "sidefx-vex-reference": 605,
     "vex-corpus-blueprints": 84
   },
+  "llm_coverage": {
+    "explanation": 2083,
+    "llm_bugs": 2079,
+    "llm_complexity": 2079,
+    "llm_topic": 2079,
+    "prompt": 2083
+  },
   "total_chunks": 2513,
-  "total_code_blocks": 2436,
-  "unique_functions": 744,
-  "with_code": 2083
+  "with_code": 2079
 }
