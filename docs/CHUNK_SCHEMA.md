@@ -58,20 +58,29 @@ Defined in `pipeline/schema.py`. Flat structure, standardized enums, all fields 
 | **Classification** | | | |
 | `content_type` | ContentType | `"concept"` | concept / pattern / reference / troubleshooting / discussion |
 | `difficulty` | Difficulty | `"beginner"` | beginner / intermediate / advanced / expert |
-| `vex_context` | list[VEXContext] | `["sop"]` | sop / dop / cop / chop / cvex / material / solver |
+| `vex_context` | list[VEXContext] | `["sop"]` | sop / dop / cop / chop / cvex / material / solver / **lop** / **apex** |
+| `subcontext` | str | `""` | Node-level context, e.g. `"point_wrangle"`, `"gas_field_wrangle"`, `"snippet_vop"`, `"runvex"`, `"usd_attr_prep"` |
+| `domain` | str | `""` | Workflow area (Domain enum): `procedural_modeling`, `mpm`, `look_development`, `lighting`, `apex`, `solaris`, `tops`, `fundamentals` |
 | **Source Metadata** | | | |
 | `source_id` | str | `""` | Maps to `config/sources.yaml` |
 | `source_url` | str | `""` | Direct URL to source material |
 | `source_authority` | float | `0.0` | 0.0-1.0, from sources.yaml |
 | `title` | str | `""` | Human-readable chunk title |
 | `section` | str | `""` | Section within source (e.g. "JoyOfVex Day 7") |
+| `license` | str | `""` | SPDX id; must be in `REDISTRIBUTABLE_LICENSES` to store code verbatim |
+| `attribution` | str | `""` | Credit string for the source |
 | **VEX-Specific** | | | |
 | `functions_referenced` | list[str] | `[]` | `["pcopen", "pcfind", "pcclose"]` |
 | `attributes_read` | list[str] | `[]` | `["P", "N", "Cd"]` (always flat strings) |
 | `attributes_written` | list[str] | `[]` | `["pscale", "Cd"]` |
 | `houdini_version_min` | str | `""` | Minimum Houdini version |
+| `houdini_version_max` | str | `""` | Maximum version, if a feature was later removed/changed |
 | `houdini_version_notes` | str | `""` | Deprecation or behavior change notes |
 | `prerequisites` | list[str] | `[]` | Chunk IDs this depends on |
+| **Verification (quality gate)** | | | |
+| `verified` | bool | `False` | True only if it cooked clean on the target build |
+| `verification_method` | str | `""` | `""` / `static-lint` / `vcc` / `hython-cook` / `apex-harness` |
+| `verified_houdini_build` | str | `""` | Exact build the gate ran on, e.g. `"21.0.630"` |
 | **Pipeline Metadata** | | | |
 | `created_at` | str | auto | ISO timestamp |
 | `pipeline_version` | str | `"0.1.0"` | Pipeline version that generated this |

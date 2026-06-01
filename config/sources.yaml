@@ -6,8 +6,12 @@
 #   type:               youtube_transcript | web_scrape | github_wiki | local_skill
 #   url/path:           Where to find the source material
 #   authority:          0.0-1.0 trust weight (see docs/SOURCES.md for scale)
+#   license:            SPDX id. Must be in schema.REDISTRIBUTABLE_LICENSES to
+#                       store code verbatim. "" or "proprietary" => reference-only.
+#   attribution:        Required credit string for redistributed content.
+#   reference_only:     true => index facts/links only, store NO verbatim code.
 #   difficulty_range:   [min, max] difficulty levels present in this source
-#   vex_contexts:       VEX contexts covered (sop, dop, cop, chop, cvex, material, solver)
+#   vex_contexts:       VEX contexts covered (sop, dop, cop, chop, cvex, material, solver, lop, apex)
 #   houdini_version_era: Approximate Houdini version range the content targets
 #   status:             active | planned | deprecated
 
@@ -17,6 +21,8 @@ sources:
     type: youtube_transcript
     url: "https://youtube.com/playlist?list=PLTXmnikJEYnBtSfn4LwKx5vpopwrInp18"
     authority: 0.9
+    license: "CC-BY-SA-4.0"
+    attribution: "Matt Estela (Joy of VEX), recorded by Peter Arcara / SideFX"
     difficulty_range: [beginner, intermediate]
     vex_contexts: [sop]
     houdini_version_era: "18.0-19.5"
@@ -31,6 +37,8 @@ sources:
     type: web_scrape
     url: "https://tokeru.com/cgwiki/"
     authority: 0.95
+    license: "CC-BY-SA-4.0"
+    attribution: "Matt Estela (tokeru.com/cgwiki)"
     difficulty_range: [beginner, advanced]
     vex_contexts: [sop, dop, cop]
     houdini_version_era: "16.0-20.5"
@@ -68,6 +76,9 @@ sources:
     type: web_scrape
     url: "https://www.sidefx.com/docs/houdini/vex/functions/"
     authority: 1.0
+    license: "proprietary"
+    attribution: "(c) SideFX -- official documentation"
+    reference_only: true
     difficulty_range: [reference]
     vex_contexts: [all]
     houdini_version_era: "20.5"
@@ -82,6 +93,8 @@ sources:
     type: github_wiki
     url: "https://github.com/kiryha/Houdini/wiki/vex-for-artists"
     authority: 0.7
+    license: ""   # TODO: confirm wiki license before harvesting code verbatim
+    attribution: "kiryha (github.com/kiryha/Houdini)"
     difficulty_range: [beginner, intermediate]
     vex_contexts: [sop]
     houdini_version_era: "18.0-19.5"
@@ -94,6 +107,8 @@ sources:
     type: local_skill
     path: "~/.claude/skills/vex-pattern-library/"
     authority: 0.85
+    license: "MIT"
+    attribution: "vex-corpus maintainers"
     difficulty_range: [intermediate, expert]
     vex_contexts: [sop, dop]
     houdini_version_era: "20.0-20.5"
@@ -101,3 +116,71 @@ sources:
     notes: >
       Production-tested VEX patterns from real projects. Self-authored,
       covers advanced topics like solver patterns and packed prims.
+
+  # ---------------------------------------------------------------------------
+  # Houdini 21.0.630+ expansion (see docs/SAMPLE_STRATEGY.md)
+  # ---------------------------------------------------------------------------
+
+  - id: authored-h21-samples
+    name: "Authored H21 Samples (MIT)"
+    type: authored
+    path: "data/authored/"
+    authority: 0.85
+    license: "MIT"
+    attribution: "vex-corpus authored samples"
+    difficulty_range: [beginner, advanced]
+    vex_contexts: [sop, solver, material, cvex, lop, apex]
+    houdini_version_era: "21.0"
+    status: active
+    notes: >
+      Original, MIT-licensed samples authored to cover the modern Houdini
+      feature set (procedural modeling, MPM, look dev, lighting, APEX,
+      Solaris, TOPs) where no redistributable open-source corpus exists.
+      Built via scripts/authoring/build_authored.py, verified via
+      scripts/quality/verify_vex.py, ingested via scripts/import_authored.py.
+
+  - id: thi-ng-vexed-generation
+    name: "vexed-generation (thi.ng)"
+    type: github_repo
+    url: "https://github.com/thi-ng/vexed-generation"
+    authority: 0.8
+    license: "MIT"
+    attribution: "Karsten Schmidt / thi.ng -- vexed-generation"
+    difficulty_range: [intermediate, expert]
+    vex_contexts: [sop]
+    houdini_version_era: "16.0-20.5"
+    status: planned
+    notes: >
+      Polymorphic VEX/OpenCL helper-function library (vgen.h). Green-tier
+      (MIT). Harvest header functions as 'pattern' chunks. Confirm license
+      at ingest time via the GitHub API.
+
+  - id: toby5001-houdini-snippets
+    name: "Houdini-Snippets (toby5001)"
+    type: github_repo
+    url: "https://github.com/toby5001/Houdini-Snippets"
+    authority: 0.75
+    license: "Apache-2.0"
+    attribution: "toby5001 -- Houdini-Snippets"
+    difficulty_range: [beginner, advanced]
+    vex_contexts: [sop]
+    houdini_version_era: "19.0-20.5"
+    status: planned
+    notes: >
+      Commonly-used VEX/OpenCL snippets. Green-tier (Apache-2.0). Confirm
+      license at ingest time.
+
+  - id: jtomori-vex-tutorial
+    name: "vex_tutorial (jtomori)"
+    type: github_repo
+    url: "https://github.com/jtomori/vex_tutorial"
+    authority: 0.75
+    license: ""   # TODO: confirm SPDX license before harvesting verbatim code
+    attribution: "jtomori -- vex_tutorial"
+    difficulty_range: [beginner, intermediate]
+    vex_contexts: [sop]
+    houdini_version_era: "16.0-19.5"
+    status: planned
+    notes: >
+      Well-regarded VEX syntax/capability tutorial with visual examples.
+      Confirm license before storing code verbatim.

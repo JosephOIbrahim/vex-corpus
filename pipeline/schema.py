@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any
 
 # Pipeline version stamped on every chunk
-PIPELINE_VERSION = "0.2.0"
+PIPELINE_VERSION = "0.3.0"
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +41,16 @@ class Difficulty(str, Enum):
 
 
 class VEXContext(str, Enum):
-    """Houdini VEX execution context."""
+    """Houdini VEX execution context.
+
+    ``lop`` and ``apex`` were added for Houdini 20/21 coverage:
+      - ``lop``  : VEX run on the SOP side specifically to prepare geometry
+                   for Solaris/USD (instancer attrs, displayColor, names).
+      - ``apex`` : VEX inside an APEX ``RunVex``/VEX-snippet node. Note that
+                   APEX VEX has NO ``@`` attribute syntax -- it operates on
+                   named inputs/outputs only -- so it must never be confused
+                   with SOP wrangle VEX during retrieval.
+    """
     SOP = "sop"
     DOP = "dop"
     COP = "cop"
@@ -49,6 +58,33 @@ class VEXContext(str, Enum):
     CVEX = "cvex"
     MATERIAL = "material"
     SOLVER = "solver"
+    LOP = "lop"
+    APEX = "apex"
+
+
+class Domain(str, Enum):
+    """High-level Houdini workflow area a chunk belongs to.
+
+    Independent of ``vex_context`` so retrieval can filter by workflow
+    ("show me MPM examples") as well as by execution context.
+    """
+    PROCEDURAL_MODELING = "procedural_modeling"
+    LOOK_DEVELOPMENT = "look_development"
+    LIGHTING = "lighting"
+    APEX = "apex"
+    MPM = "mpm"
+    SOLARIS = "solaris"
+    TOPS = "tops"
+    FUNDAMENTALS = "fundamentals"  # the existing math/attr/point-cloud core
+
+
+# Redistribution-compatible SPDX license ids (the "green" + "yellow" tiers
+# from docs/SAMPLE_STRATEGY.md). Code under any other / no license is
+# reference-only and must not be stored verbatim.
+REDISTRIBUTABLE_LICENSES = frozenset({
+    "MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC",
+    "Unlicense", "CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +135,9 @@ class ChunkV2:
     content_type: str = ContentType.CONCEPT.value
     difficulty: str = Difficulty.BEGINNER.value
     vex_context: list[str] = field(default_factory=lambda: [VEXContext.SOP.value])
+    subcontext: str = ""          # e.g. "point_wrangle", "gas_field_wrangle",
+                                  # "snippet_vop", "runvex", "usd_attr_prep"
+    domain: str = ""              # see Domain enum; "" for legacy chunks
 
     # --- Source metadata ---
     source_id: str = ""
@@ -106,14 +145,22 @@ class ChunkV2:
     source_authority: float = 0.0
     title: str = ""
     section: str = ""
+    license: str = ""             # SPDX id; must be in REDISTRIBUTABLE_LICENSES
+    attribution: str = ""         # author / source credit string
 
     # --- VEX-specific ---
     functions_referenced: list[str] = field(default_factory=list)
     attributes_read: list[str] = field(default_factory=list)
     attributes_written: list[str] = field(default_factory=list)
     houdini_version_min: str = ""
+    houdini_version_max: str = ""     # if a feature was later removed/changed
     houdini_version_notes: str = ""
     prerequisites: list[str] = field(default_factory=list)
+
+    # --- Verification (the quality gate; see docs/SAMPLE_STRATEGY.md s3) ---
+    verified: bool = False           # passed compile + cook on target build
+    verification_method: str = ""    # "" | "static-lint" | "vcc" | "hython-cook" | "apex-harness"
+    verified_houdini_build: str = "" # exact build the gate ran on, e.g. "21.0.630"
 
     # --- Pipeline metadata ---
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -151,17 +198,25 @@ class ChunkV2:
             "content_type": self.content_type,
             "difficulty": self.difficulty,
             "vex_context": self.vex_context,
+            "subcontext": self.subcontext,
+            "domain": self.domain,
             "source_id": self.source_id,
             "source_url": self.source_url,
             "source_authority": self.source_authority,
             "title": self.title,
             "section": self.section,
+            "license": self.license,
+            "attribution": self.attribution,
             "functions_referenced": self.functions_referenced,
             "attributes_read": self.attributes_read,
             "attributes_written": self.attributes_written,
             "houdini_version_min": self.houdini_version_min,
+            "houdini_version_max": self.houdini_version_max,
             "houdini_version_notes": self.houdini_version_notes,
             "prerequisites": self.prerequisites,
+            "verified": self.verified,
+            "verification_method": self.verification_method,
+            "verified_houdini_build": self.verified_houdini_build,
             "created_at": self.created_at,
             "pipeline_version": self.pipeline_version,
             "checksum": self.checksum,
@@ -184,17 +239,25 @@ class ChunkV2:
             content_type=d.get("content_type", ContentType.CONCEPT.value),
             difficulty=d.get("difficulty", Difficulty.BEGINNER.value),
             vex_context=d.get("vex_context", [VEXContext.SOP.value]),
+            subcontext=d.get("subcontext", ""),
+            domain=d.get("domain", ""),
             source_id=d.get("source_id", ""),
             source_url=d.get("source_url", ""),
             source_authority=d.get("source_authority", 0.0),
             title=d.get("title", ""),
             section=d.get("section", ""),
+            license=d.get("license", ""),
+            attribution=d.get("attribution", ""),
             functions_referenced=d.get("functions_referenced", []),
             attributes_read=d.get("attributes_read", []),
             attributes_written=d.get("attributes_written", []),
             houdini_version_min=d.get("houdini_version_min", ""),
+            houdini_version_max=d.get("houdini_version_max", ""),
             houdini_version_notes=d.get("houdini_version_notes", ""),
             prerequisites=d.get("prerequisites", []),
+            verified=d.get("verified", False),
+            verification_method=d.get("verification_method", ""),
+            verified_houdini_build=d.get("verified_houdini_build", ""),
             created_at=d.get("created_at", ""),
             pipeline_version=d.get("pipeline_version", PIPELINE_VERSION),
             checksum=d.get("checksum", ""),

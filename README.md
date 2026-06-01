@@ -77,6 +77,40 @@ Each JSONL line contains a self-describing chunk with 33 fields:
 
 See `docs/CHUNK_SCHEMA.md` for the complete field reference.
 
+## Houdini 21.0.630+ Expansion
+
+The corpus is being extended beyond its SOP/math core into the modern Houdini
+feature set: **procedural modeling, MPM, look development, lighting, APEX,
+Solaris, and TOPs**. The full reasoning is in
+[`docs/SAMPLE_STRATEGY.md`](docs/SAMPLE_STRATEGY.md). Key principles:
+
+- **Verified, not just plausible.** Every new chunk should pass the quality
+  gate (`scripts/quality/verify_vex.py`) -- a `hython` cook on the target build
+  when Houdini is present, with a portable static linter as a fallback. Only a
+  real cook sets `verified: true` and stamps `verified_houdini_build`.
+- **Open-source only.** Code is stored verbatim only under a redistributable
+  license (`MIT`, `Apache-2.0`, `CC-BY-SA-4.0`, ...). Unlicensed / forum /
+  paywalled material is reference-only.
+- **Harvest where supply exists, author where it doesn't.** New H21 features
+  (MPM, APEX) have no open corpus yet, so we author MIT-licensed samples.
+
+### Authoring workflow
+
+```bash
+# 1. Lint + build the authored sample JSONL from the catalog
+python scripts/authoring/build_authored.py
+
+# 2. Ingest -> ChunkV2 (runs the quality gate, stamps license/verification)
+python scripts/import_authored.py            # static-lint without Houdini
+python scripts/import_authored.py --merge    # also append to merged_corpus
+
+# 3. (On a Houdini 21.0.630 box) verify a JSONL through the cook gate
+python scripts/quality/verify_vex.py data/authored/mpm.jsonl
+```
+
+Authored samples live in [`scripts/authoring/catalog.py`](scripts/authoring/catalog.py)
+(readable, reviewable VEX) and build to `data/authored/*.jsonl`.
+
 ## Synapse Integration
 
 The `sync_to_synapse.py` script transforms the corpus into Synapse's RAG format:
