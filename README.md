@@ -111,6 +111,22 @@ python scripts/quality/verify_vex.py data/authored/mpm.jsonl
 Authored samples live in [`scripts/authoring/catalog.py`](scripts/authoring/catalog.py)
 (readable, reviewable VEX) and build to `data/authored/*.jsonl`.
 
+### Harvesting open-source repos (Phase 1)
+
+For domains where redistributable open-source VEX already exists (procedural
+modeling), `scripts/scrapers/harvest_github.py` ingests a **local checkout** of
+a repo. It refuses any source whose `config/sources.yaml` license is not
+redistributable (the license wall), extracts per-function chunks from `.h`
+headers, whole programs from `.vfl`/`.vex`, and fenced ```` ```vex ```` blocks
+from `.md`, and stamps each chunk with a commit-pinned permalink:
+
+```bash
+git clone https://github.com/thi-ng/vexed-generation /tmp/vgen
+python scripts/scrapers/harvest_github.py --repo-dir /tmp/vgen \
+    --source-id thi-ng-vexed-generation \
+    --commit $(git -C /tmp/vgen rev-parse HEAD) --domain procedural_modeling
+```
+
 ## Synapse Integration
 
 The `sync_to_synapse.py` script transforms the corpus into Synapse's RAG format:
