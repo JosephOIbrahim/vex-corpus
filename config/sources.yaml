@@ -117,6 +117,21 @@ sources:
       Production-tested VEX patterns from real projects. Self-authored,
       covers advanced topics like solver patterns and packed prims.
 
+  - id: vex-corpus-blueprints
+    name: "VEX Corpus Blueprints (curated production patterns)"
+    type: local_skill
+    path: "blueprints/"
+    authority: 0.85
+    license: "MIT"
+    attribution: "vex-corpus maintainers"
+    difficulty_range: [intermediate, expert]
+    vex_contexts: [sop, dop]
+    houdini_version_era: "20.0-20.5"
+    status: active
+    notes: >
+      Curated, self-authored production VEX patterns (84 chunks in the legacy
+      merged corpus). MIT-licensed.
+
   # ---------------------------------------------------------------------------
   # Houdini 21.0.630+ expansion (see docs/SAMPLE_STRATEGY.md)
   # ---------------------------------------------------------------------------

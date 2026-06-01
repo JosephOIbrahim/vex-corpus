@@ -129,10 +129,27 @@ python scripts/scrapers/harvest_github.py --repo-dir /tmp/vgen \
 
 ## Synapse Integration
 
+Ingestion is a two-step flow (full guide: [`docs/INGESTION.md`](docs/INGESTION.md)):
+
+```bash
+# 1. Unify all inputs (legacy + authored + harvested) into one canonical file
+python scripts/build_corpus.py
+#    -> output/corpus/vex_corpus.jsonl  (the file you ingest)
+#    -> output/corpus/corpus_manifest.json  (counts by domain/license/etc.)
+
+# 2. Sync the canonical corpus into a local Synapse checkout
+python scripts/sync_to_synapse.py --synapse /path/to/Synapse
+```
+
+`build_corpus.py` normalizes every chunk so it always carries `llm_topic`,
+`domain`, and `license` -- which means **no chunk is silently dropped** during
+sync, and the H21 domains (MPM, APEX, look dev, ...) each get their own
+reference file in Synapse.
+
 The `sync_to_synapse.py` script transforms the corpus into Synapse's RAG format:
 
 ```bash
-# Preview what will be generated
+# Preview what would be generated (prefers vex_corpus.jsonl, falls back to merged)
 python scripts/sync_to_synapse.py --dry-run
 
 # Sync to Synapse (auto-detects sibling Synapse/ directory)
