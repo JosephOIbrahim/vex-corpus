@@ -28,7 +28,12 @@ is unchanged (use `--force` to override, `--dry-run` to preview).
 
 1. `output/corpus/merged_corpus.jsonl` — legacy enriched chunks (Joy of VEX, cgwiki, SideFX, blueprints)
 2. `output/authored/authored_corpus.jsonl` — authored H21 samples (`scripts/import_authored.py`)
-3. `output/harvest/*.jsonl` — license-aware GitHub harvest (`scripts/scrapers/harvest_github.py`)
+3. `output/best_practices/best_practices_corpus.jsonl` — VEX blocks from the H21 best-practices guide (`scripts/ingest_best_practices.py`)
+4. `output/harvest/*.jsonl` — license-aware GitHub harvest (`scripts/scrapers/harvest_github.py`)
+
+> Best-practices code from an H21 domain section joins that domain's reference
+> file in Synapse; general VEX best practices and anti-patterns group under the
+> `best_practices` topic (its own reference file).
 
 ### Normalization guarantees (why ingestion is "easy")
 

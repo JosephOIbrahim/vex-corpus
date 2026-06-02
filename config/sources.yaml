@@ -199,3 +199,20 @@ sources:
     notes: >
       Well-regarded VEX syntax/capability tutorial with visual examples.
       Confirm license before storing code verbatim.
+
+  - id: houdini21-best-practices
+    name: "Houdini 21 Best Practices (authored guide)"
+    type: authored_doc
+    path: "docs/HOUDINI21_BEST_PRACTICES.md"
+    authority: 0.9
+    license: "MIT"
+    attribution: "vex-corpus maintainers"
+    difficulty_range: [beginner, advanced]
+    vex_contexts: [sop, solver, material, apex]
+    houdini_version_era: "21.0"
+    status: active
+    notes: >
+      The Houdini 21 best-practices guide. Its fenced VEX code blocks are
+      ingested as chunks via scripts/ingest_best_practices.py; H21-domain
+      examples join their domain reference file, general VEX best practices
+      group under the 'best_practices' topic.

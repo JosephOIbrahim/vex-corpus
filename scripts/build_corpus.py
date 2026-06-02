@@ -47,6 +47,7 @@ from pipeline.schema import PIPELINE_VERSION  # noqa: E402
 SOURCES_YAML = PROJECT_ROOT / "config" / "sources.yaml"
 CORPUS_DIR = PROJECT_ROOT / "output" / "corpus"
 AUTHORED = PROJECT_ROOT / "output" / "authored" / "authored_corpus.jsonl"
+BEST_PRACTICES = PROJECT_ROOT / "output" / "best_practices" / "best_practices_corpus.jsonl"
 HARVEST_DIR = PROJECT_ROOT / "output" / "harvest"
 
 LEGACY_CORPUS = CORPUS_DIR / "merged_corpus.jsonl"
@@ -152,6 +153,8 @@ def collect_inputs() -> list[tuple[str, Path]]:
         inputs.append(("legacy", LEGACY_CORPUS))
     if AUTHORED.exists():
         inputs.append(("authored", AUTHORED))
+    if BEST_PRACTICES.exists():
+        inputs.append(("best_practices", BEST_PRACTICES))
     if HARVEST_DIR.exists():
         for p in sorted(HARVEST_DIR.glob("*.jsonl")):
             inputs.append((f"harvest:{p.stem}", p))

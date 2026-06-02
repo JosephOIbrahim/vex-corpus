@@ -1,52 +1,54 @@
 {
   "schema_version": "0.3.0",
-  "generated_at": "2026-06-01T23:20:02",
+  "generated_at": "2026-06-02T00:28:55",
   "corpus_file": "vex_corpus.jsonl",
-  "total_chunks": 2552,
-  "with_code": 2122,
+  "total_chunks": 2571,
+  "with_code": 2141,
   "verified_chunks": 0,
   "redistribution_review_chunks": 317,
   "provenance": {
     "legacy": 2513,
-    "authored": 39
+    "authored": 39,
+    "best_practices": 19
   },
   "by_domain": {
-    "apex": 6,
-    "fundamentals": 2513,
+    "apex": 7,
+    "fundamentals": 2527,
     "lighting": 3,
-    "look_development": 6,
-    "mpm": 8,
-    "procedural_modeling": 10,
-    "solaris": 4,
+    "look_development": 7,
+    "mpm": 9,
+    "procedural_modeling": 11,
+    "solaris": 5,
     "tops": 2
   },
   "by_vex_context": {
-    "apex": 6,
+    "apex": 7,
     "chop": 18,
     "cop": 2,
     "cvex": 10,
     "dop": 517,
-    "material": 94,
-    "solver": 4,
-    "sop": 2393
+    "material": 95,
+    "solver": 5,
+    "sop": 2409
   },
   "by_source": {
     "authored-h21-samples": 39,
     "cgwiki-vex": 191,
+    "houdini21-best-practices": 19,
     "joy-of-vex-youtube": 1633,
     "sidefx-vex-reference": 605,
     "vex-corpus-blueprints": 84
   },
   "by_license": {
     "CC-BY-SA-4.0": 1824,
-    "MIT": 123,
+    "MIT": 142,
     "proprietary": 605
   },
   "by_difficulty": {
     "advanced": 258,
     "beginner": 271,
     "expert": 16,
-    "intermediate": 2007
+    "intermediate": 2026
   },
   "ingestion": {
     "grouping_key": "llm_topic (== domain for H21 content)",

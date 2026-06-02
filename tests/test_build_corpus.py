@@ -126,6 +126,7 @@ def test_build_dedupes_across_inputs(tmp_path, monkeypatch):
 
     monkeypatch.setattr(bc, "LEGACY_CORPUS", legacy)
     monkeypatch.setattr(bc, "AUTHORED", authored)
+    monkeypatch.setattr(bc, "BEST_PRACTICES", tmp_path / "noexist_bp.jsonl")
     monkeypatch.setattr(bc, "HARVEST_DIR", tmp_path / "noexist")
 
     chunks, provenance = build(REG)

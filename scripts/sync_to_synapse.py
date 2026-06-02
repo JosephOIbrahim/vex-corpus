@@ -45,6 +45,7 @@ TOPIC_LABELS = {
     "field_analysis": "Field Analysis",
     "loop_patterns": "Loop Patterns",
     "uncategorized": "Uncategorized",
+    "best_practices": "VEX Best Practices (H21)",
     # Houdini 21.0.630+ domains (grouping key == domain for authored/harvested)
     "procedural_modeling": "Procedural Modeling (H21)",
     "mpm": "MPM Solver (H21)",
@@ -59,7 +60,7 @@ TOPIC_LABELS = {
 # they are discoverable in Synapse rather than buried in misc.
 FORCE_TOPIC_KEYS = frozenset({
     "procedural_modeling", "mpm", "look_development", "lighting",
-    "solaris", "apex", "tops",
+    "solaris", "apex", "tops", "best_practices",
 })
 
 DIFFICULTY_ORDER = ["beginner", "intermediate", "advanced", "expert"]
