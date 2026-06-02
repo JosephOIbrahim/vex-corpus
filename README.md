@@ -77,12 +77,79 @@ Each JSONL line contains a self-describing chunk with 33 fields:
 
 See `docs/CHUNK_SCHEMA.md` for the complete field reference.
 
+## Houdini 21.0.630+ Expansion
+
+The corpus is being extended beyond its SOP/math core into the modern Houdini
+feature set: **procedural modeling, MPM, look development, lighting, APEX,
+Solaris, and TOPs**. The full reasoning is in
+[`docs/SAMPLE_STRATEGY.md`](docs/SAMPLE_STRATEGY.md). Key principles:
+
+- **Verified, not just plausible.** Every new chunk should pass the quality
+  gate (`scripts/quality/verify_vex.py`) -- a `hython` cook on the target build
+  when Houdini is present, with a portable static linter as a fallback. Only a
+  real cook sets `verified: true` and stamps `verified_houdini_build`.
+- **Open-source only.** Code is stored verbatim only under a redistributable
+  license (`MIT`, `Apache-2.0`, `CC-BY-SA-4.0`, ...). Unlicensed / forum /
+  paywalled material is reference-only.
+- **Harvest where supply exists, author where it doesn't.** New H21 features
+  (MPM, APEX) have no open corpus yet, so we author MIT-licensed samples.
+
+### Authoring workflow
+
+```bash
+# 1. Lint + build the authored sample JSONL from the catalog
+python scripts/authoring/build_authored.py
+
+# 2. Ingest -> ChunkV2 (runs the quality gate, stamps license/verification)
+python scripts/import_authored.py            # static-lint without Houdini
+python scripts/import_authored.py --merge    # also append to merged_corpus
+
+# 3. (On a Houdini 21.0.630 box) verify a JSONL through the cook gate
+python scripts/quality/verify_vex.py data/authored/mpm.jsonl
+```
+
+Authored samples live in [`scripts/authoring/catalog.py`](scripts/authoring/catalog.py)
+(readable, reviewable VEX) and build to `data/authored/*.jsonl`.
+
+### Harvesting open-source repos (Phase 1)
+
+For domains where redistributable open-source VEX already exists (procedural
+modeling), `scripts/scrapers/harvest_github.py` ingests a **local checkout** of
+a repo. It refuses any source whose `config/sources.yaml` license is not
+redistributable (the license wall), extracts per-function chunks from `.h`
+headers, whole programs from `.vfl`/`.vex`, and fenced ```` ```vex ```` blocks
+from `.md`, and stamps each chunk with a commit-pinned permalink:
+
+```bash
+git clone https://github.com/thi-ng/vexed-generation /tmp/vgen
+python scripts/scrapers/harvest_github.py --repo-dir /tmp/vgen \
+    --source-id thi-ng-vexed-generation \
+    --commit $(git -C /tmp/vgen rev-parse HEAD) --domain procedural_modeling
+```
+
 ## Synapse Integration
+
+Ingestion is a two-step flow (full guide: [`docs/INGESTION.md`](docs/INGESTION.md)):
+
+```bash
+# 1. Unify all inputs (legacy + authored + harvested) into one canonical file
+python scripts/build_corpus.py
+#    -> output/corpus/vex_corpus.jsonl  (the file you ingest)
+#    -> output/corpus/corpus_manifest.json  (counts by domain/license/etc.)
+
+# 2. Sync the canonical corpus into a local Synapse checkout
+python scripts/sync_to_synapse.py --synapse /path/to/Synapse
+```
+
+`build_corpus.py` normalizes every chunk so it always carries `llm_topic`,
+`domain`, and `license` -- which means **no chunk is silently dropped** during
+sync, and the H21 domains (MPM, APEX, look dev, ...) each get their own
+reference file in Synapse.
 
 The `sync_to_synapse.py` script transforms the corpus into Synapse's RAG format:
 
 ```bash
-# Preview what will be generated
+# Preview what would be generated (prefers vex_corpus.jsonl, falls back to merged)
 python scripts/sync_to_synapse.py --dry-run
 
 # Sync to Synapse (auto-detects sibling Synapse/ directory)

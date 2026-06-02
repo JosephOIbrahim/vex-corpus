@@ -44,7 +44,24 @@ TOPIC_LABELS = {
     "matrix_transforms": "Matrix Transforms",
     "field_analysis": "Field Analysis",
     "loop_patterns": "Loop Patterns",
+    "uncategorized": "Uncategorized",
+    "best_practices": "VEX Best Practices (H21)",
+    # Houdini 21.0.630+ domains (grouping key == domain for authored/harvested)
+    "procedural_modeling": "Procedural Modeling (H21)",
+    "mpm": "MPM Solver (H21)",
+    "look_development": "Look Development (H21)",
+    "lighting": "Lighting (H21)",
+    "solaris": "Solaris / USD (H21)",
+    "apex": "APEX (H21)",
+    "tops": "TOPs / PDG (H21)",
 }
+
+# H21 domains always get their own reference file even below MIN_TOPIC_SIZE, so
+# they are discoverable in Synapse rather than buried in misc.
+FORCE_TOPIC_KEYS = frozenset({
+    "procedural_modeling", "mpm", "look_development", "lighting",
+    "solaris", "apex", "tops", "best_practices",
+})
 
 DIFFICULTY_ORDER = ["beginner", "intermediate", "advanced", "expert"]
 
@@ -114,6 +131,12 @@ def collect_keywords(chunks: list[dict]) -> list[str]:
                     seen.add(kw_lower)
                     keywords.append(kw_lower)
 
+        # domain is a single string, not a list
+        dom = (chunk.get("domain") or "").lower().strip()
+        if dom and dom not in seen:
+            seen.add(dom)
+            keywords.append(dom)
+
     return sorted(keywords)[:MAX_KEYWORDS]
 
 
@@ -127,12 +150,20 @@ def group_by_topic(chunks: list[dict]) -> dict[str, list[dict]]:
     return dict(groups)
 
 
-def partition_topics(groups: dict[str, list[dict]]) -> tuple[dict, list[dict]]:
-    """Split into major topics (>=MIN_TOPIC_SIZE) and misc chunks."""
+def partition_topics(
+    groups: dict[str, list[dict]],
+    force_keys: frozenset[str] = frozenset(),
+) -> tuple[dict, list[dict]]:
+    """Split into major topics and misc chunks.
+
+    A topic is major if it has >=MIN_TOPIC_SIZE chunks OR its key is in
+    ``force_keys`` (used to give H21 domains their own reference file even when
+    small, so they stay discoverable rather than landing in misc).
+    """
     major = {}
     misc_chunks = []
     for topic, chunks in sorted(groups.items()):
-        if len(chunks) >= MIN_TOPIC_SIZE:
+        if len(chunks) >= MIN_TOPIC_SIZE or topic in force_keys:
             major[topic] = chunks
         else:
             misc_chunks.extend(chunks)
@@ -256,8 +287,12 @@ def build_semantic_entry(file_key: str, label: str, chunks: list[dict]) -> dict:
     """Build a semantic_index.json entry for one topic."""
     keywords = collect_keywords(chunks)
     sources = sorted({c.get("source_id", "") for c in chunks if c.get("source_id")})
+    licenses = sorted({c.get("license", "") for c in chunks if c.get("license")})
+    verified_count = sum(1 for c in chunks if c.get("verified"))
+    h_versions = sorted({c.get("houdini_version_min", "")
+                         for c in chunks if c.get("houdini_version_min")})
 
-    return {
+    entry = {
         "summary": f"VEX Corpus: {label} ({len(chunks)} examples)",
         "description": (
             f"Labeled VEX examples for {label.lower()} from vex-corpus. "
@@ -267,6 +302,14 @@ def build_semantic_entry(file_key: str, label: str, chunks: list[dict]) -> dict:
         "keywords": keywords,
         "reference_file": file_key,
     }
+    # Additive provenance/quality signal for retrieval ranking.
+    if licenses:
+        entry["licenses"] = licenses
+    if verified_count:
+        entry["verified_examples"] = verified_count
+    if h_versions:
+        entry["houdini_version_min"] = h_versions[0]
+    return entry
 
 
 def merge_semantic_index(index_path: Path, new_entries: dict[str, dict]) -> dict:
@@ -374,7 +417,7 @@ def run_sync(
     groups = group_by_topic(chunks)
     print(f"  {sum(len(v) for v in groups.values())} enriched chunks across {len(groups)} topics")
 
-    major_topics, misc_chunks = partition_topics(groups)
+    major_topics, misc_chunks = partition_topics(groups, FORCE_TOPIC_KEYS)
     print(f"  {len(major_topics)} major topics (>={MIN_TOPIC_SIZE} chunks)")
     print(f"  {len(misc_chunks)} chunks in misc ({len(groups) - len(major_topics)} small topics)")
 
@@ -492,7 +535,11 @@ def main() -> None:
     # Resolve paths
     script_dir = Path(__file__).resolve().parent
     corpus_root = script_dir.parent
-    corpus_path = corpus_root / "output" / "corpus" / "merged_corpus.jsonl"
+    # Prefer the unified canonical corpus (built by scripts/build_corpus.py);
+    # fall back to the legacy merged corpus if it hasn't been built yet.
+    corpus_path = corpus_root / "output" / "corpus" / "vex_corpus.jsonl"
+    if not corpus_path.exists():
+        corpus_path = corpus_root / "output" / "corpus" / "merged_corpus.jsonl"
 
     if args.synapse:
         synapse_root = args.synapse.resolve()
